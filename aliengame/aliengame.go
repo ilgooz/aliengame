@@ -123,10 +123,6 @@ func (w *World) Resume() (canResume bool) {
 	//   city will fight, all will die and the city will be destroyed.
 	// - some cities may have left with no aliens.
 	w.moveAliens()
-	for _, a := range w.aliens {
-
-		fmt.Println(a.CityName)
-	}
 	w.fightAliens()
 	// check if the world can be resumed again.
 	for _, alien := range w.aliens {
