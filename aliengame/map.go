@@ -36,7 +36,9 @@ type City struct {
 //
 // TODO check `=` token to ensure that only `=` used to bind directions and cities
 // together. right now parser does not complain about what token is used.
-var cityRe = regexp.MustCompile(`(?m)[\w+-]+`)
+//
+// TODO may manually split lines by space and `=` for optimization?
+var cityRe = regexp.MustCompile(`(?m)[\p{L}\d_-]+`)
 
 // ParseMap parses a map defination by reading from r. it then returns the Map
 // representation of the given defination. error is not nil when the defination
