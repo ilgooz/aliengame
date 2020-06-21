@@ -23,26 +23,25 @@ type City struct {
 	// HasNoNeighbors shows if city has neighbor cities around it.
 	HasNoNeighbors bool
 
-	// Neighbors are the neighbor cities of the city. neighbors has direct walk
-	// paths to the city.
-	// direction keeps the information about what is the direction of the
-	// neighbor relative to the city.
-	Neighbors map[compass.Direction]string // direction - city name pair.
+	// Neighbors are the neighbor cities of the city. neighbors have direct paths
+	// (directions) to the city.
+	// direction information is relative to the city not a neighbor.
+	Neighbors map[compass.Direction]string // direction - neighbor city name pair.
 }
 
-// re regexp used to parse city & neighboor direction information from each city
-// defination line from the map defination -file-.
-// city names expected to be made from word chars and optionally dashes.
+// cityRe regexp used to parse city, neighbor city and direction information from
+// each line of the map defination format.
+// city names expected to be in unicode word chars and can optionally contain dashes.
 //
 // TODO check `=` token to ensure that only `=` used to bind directions and cities
 // together. right now parser does not complain about what token is used.
 //
-// TODO may manually split lines by space and `=` for optimization?
+// TODO maybe manually split lines by space and `=` for optimization?
 var cityRe = regexp.MustCompile(`(?m)[\p{L}\d_-]+`)
 
 // ParseMap parses a map defination by reading from r. it then returns the Map
 // representation of the given defination. error is not nil when the defination
-// file is syntactically isn't correct or on invalid compass direction.
+// file is syntactically not correct or when compass direction is invalid.
 func ParseMap(r io.Reader) (Map, error) {
 	mp := make(Map)
 	lr := bufio.NewReader(r)
@@ -63,8 +62,8 @@ func ParseMap(r io.Reader) (Map, error) {
 			continue
 		}
 		if lw < 3 || lw%2 != 1 {
-			// found missing city name or, one of the compass direction
-			// or city name in one of the direction=city pairs.
+			// one of the city name, neighbor or direction information to a
+			// neighbor is missing.
 			return mp, &CityDefinitionError{lineNumber}
 		}
 		city := &City{
@@ -82,7 +81,6 @@ func ParseMap(r io.Reader) (Map, error) {
 		}
 		mp[city.Name] = city
 	}
-	return mp, nil
 }
 
 // CraftMap makes an analysis on the game map to check map integrity like
@@ -94,14 +92,15 @@ func ParseMap(r io.Reader) (Map, error) {
 // - add missing neighbor cities of a city if they are not fully described in
 //   the map defination but it is known that they are neighbors after the analysis.
 //
-// TODO can we guess thourhg other cities and discover more directions?
-// TODO check if same compass direction is used multiple times for a city.
+// TODO can we discover more direction info by hopping through cities?
+// TODO check if the same compass direction is used multiple times in a city
+// direction list.
 func CraftMap(mp Map) error {
 	for _, city := range mp {
 		// find out the neighbors of the city and check if these neighboors
 		// actually present in the map defination. if they don't then add these
-		// neighboors to the city list.
-		// ensure that each neighbor cities points to each other.
+		// neighbors to the city list.
+		// ensure that all neighbors points to each other in the directions list.
 		for direction, neighboorCityName := range city.Neighbors {
 			revDirection := compass.ReverseDirection(direction)
 			neighboorCity, ok := mp[neighboorCityName]

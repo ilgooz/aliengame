@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	alienMaxMoveCount = 10000 // unit test this
+	alienMaxMoveCount = 10000 // TODO unit test this
 )
 
-// randIndex used create a random index number as [0, length).
+// randIndex used to get a random index number in the [0, length) range.
 var randIndex = func(length int) int {
 	if length <= 1 {
 		return 0
@@ -27,20 +27,19 @@ var randIndex = func(length int) int {
 	return rand.Intn(length)
 }
 
-// World is a game world. it hosts cities, aliens where aliens fight
-// with each other, destroy themselves, cities and paths to cities.
+// World is a game world. it consist of cities, roads (directions) and aliens.
 type World struct {
 	ma sync.Mutex // protects following.
-	// mp is map of the world.
+	// mp is game map.
 	mp Map
-	// aliens are the living aliens on the world.
+	// aliens are a list of living aliens on the world.
 	aliens []*Alien
 
-	// events are used emit events when certain game action is happened.
+	// events are used to emit game events when certain game actions happen.
 	events chan Event
 
-	// done used to keep track of status of the world to see if it can
-	// be resumed.
+	// done used to keep track of the status of the world to see if it can
+	// be resumed or not.
 	done bool
 }
 
@@ -49,7 +48,7 @@ type Alien struct {
 	// Name is the unique name of the alien.
 	Name string
 
-	// CityName that alien is current residing.
+	// CityName is the name of the city that alien is currently residing.
 	CityName string
 
 	// MoveCount is the number of times that alien has travelled to another city.
@@ -60,8 +59,8 @@ type Alien struct {
 	IsTrapped bool
 }
 
-// New creates a new game world by given map and send the game events to theevents
-// channel. setting the events channel is optional.
+// New creates a new game world by the given game map. game events sent to the
+// events channel but providing it is optional.
 func New(mp Map, events chan Event) *World {
 	return &World{
 		mp:     mp,
@@ -70,20 +69,20 @@ func New(mp Map, events chan Event) *World {
 }
 
 // SpawnAlien randomly spawns new aliens on the map on different cities.
-// it can be at any time and as much as needed to add new aliens.
+// it can be used at any time, as much as needed to spawn more aliens on the world.
 //
-// TODO this can accept ...SpawnAlianOption to provide flexibility on which
+// TODO this can accept ...SpawnAlianOption options to give flexibility on which
 // city a given alien should spawn at.
 func (w *World) SpawnAlien(count int) {
 	w.ma.Lock()
 	defer w.ma.Unlock()
 	// get an indexable list of city names so they can be randomly picked
-	// to place aliens to cities.
+	// to place aliens in them.
 	var cityNames []string
 	for cityName := range w.mp {
 		cityNames = append(cityNames, cityName)
 	}
-	// randomly pick a city for per alien and place all aliens to a city.
+	// randomly pick a city for all aliens and send them there.
 	for i := count; i >= 1; i-- {
 		x := randIndex(len(cityNames))
 		city := w.mp[cityNames[x]]
@@ -95,15 +94,15 @@ func (w *World) SpawnAlien(count int) {
 	}
 }
 
-// Resume resumes the game world by one iteration by moving aliens to the neighbor
+// Resume resumes the game world for one iteration by moving aliens to the neighbor
 // cities and making them fight with each other.
-// cities and aliens might be destroyed, and paths to gone cities will be removing
-// depending the game status.
+// cities and aliens might be destroyed, and directions to the gone cities will be
+// removed from existing cities.
 //
 // certain events will be emited depending on the game actions.
 //
-// canResume returns with false if all aliens are destroyed or all aliens are
-// reached to the max move threshold thus, the world cannot resume anymore.
+// canResume returns with false if all aliens are destroyed or all aliens have
+// reached to the max move threshold, in that case the world cannot resume anymore.
 func (w *World) Resume() (canResume bool) {
 	w.ma.Lock()
 	defer w.ma.Unlock()
@@ -117,7 +116,7 @@ func (w *World) Resume() (canResume bool) {
 		}
 	}()
 	// assuming that every alien that is able to move, will move at the same time to
-	// a randomly chosen neighboor city of theirs.
+	// a randomly chosen neighbor city of theirs.
 	// thus,
 	// - multiple (>=2) aliens may end up in the same city. all aliens in the same
 	//   city will fight, all will die and the city will be destroyed.
@@ -141,8 +140,8 @@ func canAlienMove(alien *Alien) bool {
 func (w *World) moveAliens() {
 	for _, alien := range w.aliens {
 		if !canAlienMove(alien) {
-			// this mad alien has reached to max move treshold. the world become
-			// to a much better place now.
+			// this mad alien has reached to max move treshold or trapped. the world become
+			// to a much better place now!
 			continue
 		}
 		alien.MoveCount++
@@ -168,8 +167,8 @@ func (w *World) moveAliens() {
 	}
 }
 
-// fightAliens makes mad aliens in the same city fight resulting them being dead
-// and city and all paths to that it being destroyed.
+// fightAliens makes the mad aliens in the same city fight which will make them
+// all dead. the city and all paths to the city also will be destroyed.
 func (w *World) fightAliens() {
 	for _, city := range w.mp {
 		// find the aliens residing on the city.
@@ -180,7 +179,7 @@ func (w *World) fightAliens() {
 			}
 		}
 		if len(aliens) < 2 {
-			// there are one or no alien on the city, no alien to fight.
+			// there are one or no alien on the city, no fight today!
 			continue
 		}
 		// ops! >2 aliens are in the city, they fought!
